@@ -4,7 +4,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../auth/auth_repository.dart';
 import '../../data/api/api_exception.dart';
 import '../../data/api/instruments_api.dart';
 import '../../data/models/instrument.dart';
@@ -24,7 +23,7 @@ part 'watchlist_state.dart';
 /// the deliberate split that keeps a burst from touching bloc state at all.
 @injectable
 class WatchlistBloc extends Bloc<WatchlistEvent, WatchlistState> {
-  WatchlistBloc(this._instruments, this._auth, this._feed, this._quotes)
+  WatchlistBloc(this._instruments, this._feed, this._quotes)
     : super(const WatchlistState()) {
     on<WatchlistStarted>(_onStarted);
     on<WatchlistRetryRequested>(_onRetryRequested);
@@ -35,7 +34,6 @@ class WatchlistBloc extends Bloc<WatchlistEvent, WatchlistState> {
   }
 
   final InstrumentsApi _instruments;
-  final AuthRepository _auth;
   final FeedConnection _feed;
   final QuoteStore _quotes;
 
@@ -107,7 +105,10 @@ class WatchlistBloc extends Bloc<WatchlistEvent, WatchlistState> {
   /// another one.
   Future<WatchlistEvent> _loadOutcome() async {
     try {
-      return _InstrumentsLoaded(await _fetchInstruments());
+      // No token handling here: the API is given an AuthenticatedClient, which
+      // attaches the bearer and has already spent its one refresh by the time
+      // anything reaches these catches.
+      return _InstrumentsLoaded(await _instruments.fetch());
     } on UnauthorizedException {
       return const _LoadFailed('Session expired. Please sign in again.');
     } on InvalidCredentialsException {
@@ -116,15 +117,6 @@ class WatchlistBloc extends Bloc<WatchlistEvent, WatchlistState> {
       return const _LoadFailed(
         'Could not reach the feed server. Is it running?',
       );
-    }
-  }
-
-  Future<List<Instrument>> _fetchInstruments() async {
-    try {
-      return await _instruments.fetch(await _auth.currentToken());
-    } on UnauthorizedException {
-      // The token died between minting and use; one refresh, one retry.
-      return _instruments.fetch(await _auth.refreshToken());
     }
   }
 

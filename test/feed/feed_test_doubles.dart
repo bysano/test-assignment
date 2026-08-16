@@ -1,21 +1,22 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:pulse/data/sse/authorized_sse_transport.dart';
 import 'package:pulse/data/sse/sse_frame.dart';
 import 'package:pulse/data/sse/sse_transport.dart';
-import 'package:pulse/feed/feed_connection.dart';
 import 'package:pulse/feed/network_gate.dart';
 
-/// One `connect()` call, so tests can assert on resume cursors and tokens.
+/// One `open()` call, so tests can assert on resume cursors.
 final class ConnectCall {
-  const ConnectCall(this.token, this.lastEventId);
+  const ConnectCall(this.lastEventId);
 
-  final String token;
   final int? lastEventId;
 }
 
-/// A transport the test drives by hand: no sockets, no server, no real time.
-class FakeSseTransport implements SseTransport {
+/// An already-authorized stream the test drives by hand: no sockets, no
+/// server, no real time. Tokens are the decorator's problem, not the feed's,
+/// and are covered in `authorized_sse_transport_test.dart`.
+class FakeSseTransport implements AuthorizedStream {
   final List<ConnectCall> calls = [];
   final List<FakeSseSubscription> subscriptions = [];
 
@@ -27,11 +28,8 @@ class FakeSseTransport implements SseTransport {
       subscriptions.isEmpty ? null : subscriptions.last;
 
   @override
-  Future<SseSubscription> connect({
-    required String token,
-    int? lastEventId,
-  }) async {
-    calls.add(ConnectCall(token, lastEventId));
+  Future<SseSubscription> open({int? lastEventId}) async {
+    calls.add(ConnectCall(lastEventId));
     if (failures.isNotEmpty) throw failures.removeAt(0);
     final subscription = FakeSseSubscription();
     subscriptions.add(subscription);
@@ -80,26 +78,6 @@ class FakeSseSubscription implements SseSubscription {
   /// A socket-level failure.
   void failStream(Object error) {
     if (!_frames.isClosed) _frames.addError(error);
-  }
-}
-
-class FakeTokenProvider implements FeedTokenProvider {
-  String token = 'token-0';
-  int refreshCount = 0;
-
-  /// Thrown by [refreshToken] when set — used to simulate rejected credentials.
-  Object? refreshError;
-
-  @override
-  Future<String> currentToken() async => token;
-
-  @override
-  Future<String> refreshToken() async {
-    final error = refreshError;
-    if (error != null) throw error;
-    refreshCount++;
-    token = 'token-$refreshCount';
-    return token;
   }
 }
 

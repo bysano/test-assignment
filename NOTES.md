@@ -3,7 +3,7 @@
 ## What this is
 
 A Flutter watchlist over the provided SSE feed, built against the **default
-chaotic mode**. ~3,200 lines of Dart and ~200 of Swift, 149 tests, 15 commits.
+chaotic mode**. ~3,400 lines of Dart and ~200 of Swift, 174 tests.
 
 Run instructions are in [README.md](README.md). The native piece targets
 **iOS**.
@@ -123,7 +123,7 @@ ask the server to replay ticks we had deliberately dropped.
 | Backoff | exponential, equal jitter (half fixed, half random), 500ms → 15s cap | The fixed half means we never spin; the random half stops a fleet dropped by one restart from returning in lockstep. The cap is "don't wait forever" — a user walking back into coverage is never stranded. |
 | Stall detection | warn at 6s of silence, force reconnect at 8s | Heartbeats are ~5s, so 6s of *total* silence is already anomalous. The server's stall suppresses heartbeats too, which is exactly what makes it detectable. Its stalls last ~25s, so waiting one out costs far more than resuming from `Last-Event-ID`. |
 | Watchdog reset | any frame, comments included | During a quiet market a `: ping` is the only proof of life. |
-| Token expiry | renew 10s early; one free refresh-and-retry on 401, then backoff | The server checks expiry every second and connecting takes a moment, so handing over a token with 2s left invites an instant 401. The free retry keeps the expected case (60s TTL dying mid-stream) off the backoff path; the cap stops a ping-pong with a server that keeps saying no. |
+| Token expiry | renew 10s early; one refresh-and-retry on 401, then backoff | The server checks expiry every second and connecting takes a moment, so handing over a token with 2s left invites an instant 401. The retry keeps the expected case (60s TTL dying mid-stream) off the backoff path; capping it at one stops a ping-pong with a server that keeps saying no. Owned by the interceptors — see below. |
 | Offline | stop attempting entirely; resume immediately with backoff reset | Past failures predict nothing about a new network. |
 | Malformed | counted and dropped, never fatal | The parser dispatches garbage as an event rather than swallowing it, so the layer above can count it. |
 
@@ -135,6 +135,57 @@ doomed attempts.
 A generation counter invalidates callbacks from superseded connection
 attempts, so the paired `onError` + `onDone` of a dying socket cannot schedule
 two reconnects.
+
+### Where authentication lives
+
+One token serves both transports, so exactly one component should know how to
+attach and renew it. First cut had that policy written **twice** — once in
+`WatchlistBloc`, once in `FeedConnection` — with the two already differing on
+what to do after a second 401. Two copies of a security-adjacent rule is one
+copy too many.
+
+It now lives at the transport boundary, in the shape each transport allows:
+
+| | |
+|---|---|
+| REST | `AuthenticatedClient extends http.BaseClient` — every request funnels through one `send()` |
+| Stream | `AuthorizedSseTransport` decorating the raw `SseTransport` |
+
+`http.BaseClient` *is* Dart's interceptor seam, so no new dependency was
+needed; `dio` would have given the same thing with more machinery and a
+rewrite of the HTTP layer. The stream cannot use that seam — it runs on
+`dart:io` for its abort semantics — so it gets the same policy by decoration
+instead. Same rule, two mechanisms, one definition.
+
+Both take a `TokenSource`, not the repository, so neither transport depends on
+the auth layer. What that bought:
+
+- `FeedConnection` **lost its token dependency entirely** — no
+  `FeedTokenProvider`, no `_onUnauthorized`, no `_authRetries` to reset. It is
+  now purely backoff, stalls and reachability. An `UnauthorizedException`
+  reaching it has already spent its refresh, so it is just another reason to
+  back off.
+- `WatchlistBloc` **lost its dependency on `AuthRepository` altogether**, and
+  `InstrumentsApi.fetch()` no longer takes a token.
+- `AuthApi` is deliberately left on the **raw** client. `/login` is how a token
+  is obtained; routing it through the thing that refreshes tokens would
+  recurse. The DI module says so at the wiring.
+
+Two details that only matter in production:
+
+**`refreshAfter(rejected)` takes the dead token** rather than nothing. If the
+REST client and the stream 401 at the same moment — which they will, since one
+token expiry kills both — the second one to arrive is handed the replacement
+the first already obtained instead of triggering a second login. A burst of
+401s costs one login.
+
+**The retry is a copy, not a replay.** A `BaseRequest` is finalized when sent,
+so re-sending the original silently drops the body; the client builds a fresh
+`Request` with the same method, body and headers. Requests whose body has
+already been consumed (`StreamedRequest`) are not retried at all — the 401 is
+returned honestly rather than papered over. Retrying is safe for any method
+including `POST`, because a 401 means the server rejected us before doing any
+work.
 
 ### Session boundaries
 
@@ -248,7 +299,7 @@ channel names, and one branch — no Dart above that file changes.
 
 ---
 
-## Tests — 149, and why these
+## Tests — 174, and why these
 
 Connection lifecycle runs on `fake_async` against a `FakeSseTransport`: no
 server, no sockets, no real time. A full reconnect saga executes in
@@ -256,13 +307,15 @@ microseconds.
 
 | File | n | Covers |
 |---|---|---|
-| `feed_connection_test.dart` | 25 | backoff schedule and reset, stall → warn → forced reconnect carrying `Last-Event-ID`, 401 → refresh → retry with no user action, offline suppression and immediate resume, malformed frames not killing the stream |
+| `feed_connection_test.dart` | 26 | backoff schedule and reset, stall → warn → forced reconnect carrying `Last-Event-ID`, 401 → refresh → retry with no user action, offline suppression and immediate resume, malformed frames not killing the stream |
 | `tick_pipeline_test.dart` | 23 | dedup, per-symbol ordering, cursor advancement, gap handling, the resequence backstop |
 | `sse_parser_test.dart` | 21 | frame assembly across **six different chunk sizes** over the same input, CRLF split across chunks, multi-line data, heartbeats, garbage |
 | `auth_repository_test.dart` | 19 | early renewal, concurrent-refresh collapsing, restore semantics, Keychain failures degrading to a login prompt |
 | `quote_store_test.dart` | 13 | conflation ratios, no timers while idle, flash direction against the displayed price |
 | `watchlist_bloc_test.dart` | 10 | startup, retry, 401-then-retry, status mapping, **zero emissions under 200 ticks** |
 | `price_row_rebuild_test.dart` | 9 | **rebuild counts under a 220-tick burst**, per-instrument precision, flash behaviour |
+| `authenticated_client_test.dart` | 8 | bearer attached, one refresh-and-retry, faithful replay of method/body/headers, credentials propagated not swallowed |
+| `authorized_sse_transport_test.dart` | 7 | same policy on the stream, resume cursor preserved across the retry, no refresh for a non-auth failure |
 | `api_test.dart`, `secure_token_store_test.dart`, `platform_network_gate_test.dart`, `tick_test.dart` | 29 | REST contracts, MethodChannel contract, tri-state reachability mapping, payload decoding |
 
 The bias is toward things that are **hard to notice when broken**: an

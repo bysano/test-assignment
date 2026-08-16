@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pulse/auth/auth_repository.dart';
 import 'package:pulse/data/api/auth_api.dart';
+import 'package:pulse/data/api/authenticated_client.dart';
 import 'package:pulse/data/api/instruments_api.dart';
 import 'package:pulse/data/sse/sse_frame.dart';
 import 'package:pulse/feed/feed_connection.dart';
@@ -34,25 +35,27 @@ void main() {
   final baseUrl = Uri.parse('http://localhost:8080');
 
   WatchlistBloc buildBloc() {
+    // Wired exactly as the DI module does it: the instrument API only ever
+    // sees an AuthenticatedClient, so the bearer and the 401 retry are the
+    // interceptor's business and never the bloc's.
     final instruments = InstrumentsApi(
       baseUrl: baseUrl,
-      client: MockClient((_) async {
-        await instrumentsGate?.future;
-        final response =
-            instrumentResponses[instrumentCalls.clamp(
-              0,
-              instrumentResponses.length - 1,
-            )];
-        instrumentCalls++;
-        return response;
-      }),
+      client: AuthenticatedClient(
+        tokens: auth,
+        inner: MockClient((_) async {
+          await instrumentsGate?.future;
+          final response =
+              instrumentResponses[instrumentCalls.clamp(
+                0,
+                instrumentResponses.length - 1,
+              )];
+          instrumentCalls++;
+          return response;
+        }),
+      ),
     );
-    final feed = FeedConnection(
-      transport: transport,
-      tokens: auth,
-      random: NoJitterRandom(),
-    );
-    return WatchlistBloc(instruments, auth, feed, quotes);
+    final feed = FeedConnection(stream: transport, random: NoJitterRandom());
+    return WatchlistBloc(instruments, feed, quotes);
   }
 
   setUp(() async {

@@ -20,7 +20,10 @@ import '../auth/auth_repository.dart' as _i778;
 import '../auth/bloc/auth_bloc.dart' as _i385;
 import '../core/app_config.dart' as _i518;
 import '../data/api/auth_api.dart' as _i17;
+import '../data/api/authenticated_client.dart' as _i918;
 import '../data/api/instruments_api.dart' as _i865;
+import '../data/api/token_source.dart' as _i1023;
+import '../data/sse/authorized_sse_transport.dart' as _i466;
 import '../data/sse/sse_transport.dart' as _i80;
 import '../feed/feed_config.dart' as _i715;
 import '../feed/feed_connection.dart' as _i996;
@@ -53,34 +56,50 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i17.AuthApi>(
       () => appModule.authApi(gh<_i518.AppConfig>(), gh<_i519.Client>()),
     );
-    gh.lazySingleton<_i865.InstrumentsApi>(
-      () => appModule.instrumentsApi(gh<_i518.AppConfig>(), gh<_i519.Client>()),
-    );
     gh.lazySingleton<_i778.AuthRepository>(
       () => appModule.authRepository(
         gh<_i17.AuthApi>(),
         gh<_i1048.SecureTokenStore>(),
       ),
     );
+    gh.lazySingleton<_i1023.TokenSource>(
+      () => appModule.tokenSource(gh<_i778.AuthRepository>()),
+    );
+    gh.factory<_i385.AuthBloc>(
+      () => _i385.AuthBloc(gh<_i778.AuthRepository>()),
+    );
+    gh.lazySingleton<_i466.AuthorizedStream>(
+      () => appModule.authorizedStream(
+        gh<_i80.SseTransport>(),
+        gh<_i1023.TokenSource>(),
+      ),
+    );
     gh.lazySingleton<_i996.FeedConnection>(
       () => appModule.feedConnection(
-        gh<_i80.SseTransport>(),
-        gh<_i778.AuthRepository>(),
+        gh<_i466.AuthorizedStream>(),
         gh<_i449.NetworkGate>(),
         gh<_i715.FeedConfig>(),
         gh<_i407.Random>(),
       ),
     );
+    gh.lazySingleton<_i918.AuthenticatedClient>(
+      () => appModule.authenticatedClient(
+        gh<_i519.Client>(),
+        gh<_i1023.TokenSource>(),
+      ),
+    );
+    gh.lazySingleton<_i865.InstrumentsApi>(
+      () => appModule.instrumentsApi(
+        gh<_i518.AppConfig>(),
+        gh<_i918.AuthenticatedClient>(),
+      ),
+    );
     gh.factory<_i949.WatchlistBloc>(
       () => _i949.WatchlistBloc(
         gh<_i865.InstrumentsApi>(),
-        gh<_i778.AuthRepository>(),
         gh<_i996.FeedConnection>(),
         gh<_i1054.QuoteStore>(),
       ),
-    );
-    gh.factory<_i385.AuthBloc>(
-      () => _i385.AuthBloc(gh<_i778.AuthRepository>()),
     );
     return this;
   }

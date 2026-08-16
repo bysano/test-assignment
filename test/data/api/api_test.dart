@@ -79,16 +79,14 @@ void main() {
 [{"symbol":"EURUSD","name":"Euro / US Dollar","decimals":5},
  {"symbol":"JPN225","name":"Nikkei 225","decimals":0}]''';
 
-    test('parses instruments and sends the bearer token', () async {
+    test('parses instruments', () async {
       final api = InstrumentsApi(
         baseUrl: _baseUrl,
-        client: MockClient((request) async {
-          expect(request.headers['authorization'], 'Bearer tok');
-          return http.Response(body, 200);
-        }),
+        // No token here: AuthenticatedClient attaches it upstream.
+        client: MockClient((_) async => http.Response(body, 200)),
       );
 
-      final instruments = await api.fetch('tok');
+      final instruments = await api.fetch();
 
       expect(instruments, hasLength(2));
       expect(instruments.first.symbol, 'EURUSD');
@@ -102,7 +100,7 @@ void main() {
         client: MockClient((_) async => http.Response('', 401)),
       );
 
-      expect(() => api.fetch('stale'), throwsA(isA<UnauthorizedException>()));
+      expect(() => api.fetch(), throwsA(isA<UnauthorizedException>()));
     });
 
     // One malformed row should not cost the user the other thirty-nine.
@@ -119,7 +117,7 @@ void main() {
         ),
       );
 
-      final instruments = await api.fetch('tok');
+      final instruments = await api.fetch();
 
       expect(instruments.map((i) => i.symbol), ['EURUSD']);
     });
@@ -130,7 +128,7 @@ void main() {
         client: MockClient((_) async => http.Response('[{"nope":1}]', 200)),
       );
 
-      expect(() => api.fetch('tok'), throwsA(isA<ApiException>()));
+      expect(() => api.fetch(), throwsA(isA<ApiException>()));
     });
   });
 }

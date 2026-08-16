@@ -3,6 +3,7 @@ import 'dart:math';
 
 import '../data/api/api_exception.dart';
 import '../data/models/tick.dart';
+import '../data/sse/authorized_sse_transport.dart';
 import '../data/sse/sse_frame.dart';
 import '../data/sse/sse_transport.dart';
 import 'feed_config.dart';
@@ -10,17 +11,6 @@ import 'feed_status.dart';
 import 'feed_update.dart';
 import 'network_gate.dart';
 import 'tick_pipeline.dart';
-
-/// Supplies stream tokens. Narrow on purpose: the feed does not care how
-/// tokens are stored or refreshed, only that it can get one and force a new
-/// one when the server rejects it.
-abstract interface class FeedTokenProvider {
-  /// A token believed to be valid, refreshed transparently if near expiry.
-  Future<String> currentToken();
-
-  /// Discards the current token and obtains a new one.
-  Future<String> refreshToken();
-}
 
 /// Raised internally when the stall watchdog kills a silent connection.
 final class FeedStalledException implements Exception {
@@ -32,29 +22,30 @@ final class FeedStalledException implements Exception {
 
 /// Keeps a live SSE stream up in the face of everything the feed does to it.
 ///
-/// Responsibilities, all of which the assignment names explicitly:
-/// disconnects (reconnect with jittered exponential backoff), silent stalls
-/// (watchdog that warns then forces a reconnect), token expiry (refresh and
-/// retry once, without the user), device offline (stop retrying rather than
-/// spin), and gaps (resume from `Last-Event-ID`, report what was lost).
+/// Responsibilities: disconnects (reconnect with jittered exponential
+/// backoff), silent stalls (watchdog that warns then forces a reconnect),
+/// device offline (stop retrying rather than spin), and gaps (resume from
+/// `Last-Event-ID`, report what was lost).
+///
+/// Notably *not* a responsibility: tokens. [AuthorizedStream] hands back a
+/// stream that is already authorized and has already spent its one refresh, so
+/// an [UnauthorizedException] arriving here is a genuine failure to back off
+/// from rather than an expiry to paper over.
 ///
 /// Pure Dart. No Flutter, no widgets, and every clock it uses is a [Timer] so
 /// `fake_async` can run a whole reconnect saga in microseconds.
 class FeedConnection {
   FeedConnection({
-    required SseTransport transport,
-    required FeedTokenProvider tokens,
+    required AuthorizedStream stream,
     NetworkGate network = const AlwaysOnlineGate(),
     FeedConfig config = const FeedConfig(),
     Random? random,
-  }) : _transport = transport,
-       _tokens = tokens,
+  }) : _stream = stream,
        _network = network,
        _config = config,
        _random = random ?? Random();
 
-  final SseTransport _transport;
-  final FeedTokenProvider _tokens;
+  final AuthorizedStream _stream;
   final NetworkGate _network;
   final FeedConfig _config;
   final Random _random;
@@ -91,9 +82,6 @@ class FeedConnection {
   /// connection proves itself by delivering a frame.
   int _attempt = 0;
 
-  /// Guards against a refresh/401 ping-pong with a server that keeps saying no.
-  int _authRetries = 0;
-
   /// Invalidates callbacks from superseded attempts. Bumped by [_teardown], so
   /// the paired onError+onDone of a dying socket can only be acted on once.
   int _generation = 0;
@@ -117,7 +105,6 @@ class FeedConnection {
     _networkChanges = null;
     _teardown();
     _attempt = 0;
-    _authRetries = 0;
     // stop() ends a session, not a connection — reconnects never come through
     // here. So the resume cursor and the counters go too: the next sign-in
     // wants current market state, and a diagnostics line describing the
@@ -146,11 +133,7 @@ class FeedConnection {
     final generation = ++_generation;
 
     try {
-      final token = await _tokens.currentToken();
-      if (!_running || generation != _generation) return;
-
-      final subscription = await _transport.connect(
-        token: token,
+      final subscription = await _stream.open(
         lastEventId: _pipeline.lastEventId,
       );
       // Stopped or superseded while the socket was opening.
@@ -172,11 +155,12 @@ class FeedConnection {
         },
       );
       _armWatchdog();
-    } on UnauthorizedException {
-      if (generation == _generation) await _onUnauthorized();
     } on InvalidCredentialsException {
+      // No token can be obtained at all. Only the user can fix this.
       _fail('Sign-in was rejected. Please log in again.');
     } catch (error) {
+      // Includes an UnauthorizedException that already survived a refresh —
+      // by then it is just another reason the connection failed.
       if (generation == _generation) _scheduleReconnect(error);
     }
   }
@@ -189,7 +173,6 @@ class FeedConnection {
     if (_status is! FeedLive) {
       // The connection has demonstrably worked, so forget past failures.
       _attempt = 0;
-      _authRetries = 0;
       _emit(const FeedLive());
     }
 
@@ -254,32 +237,6 @@ class FeedConnection {
     final capped = scaled > _config.backoffCap ? _config.backoffCap : scaled;
     final half = capped.inMilliseconds ~/ 2;
     return Duration(milliseconds: half + _random.nextInt(half + 1));
-  }
-
-  // ------------------------------------------------------------------- auth
-
-  Future<void> _onUnauthorized() async {
-    _teardown();
-    if (!_running) return;
-
-    // One free retry: the overwhelmingly likely cause is the 60s token expiring
-    // mid-stream, and making the user wait out a backoff for that would be
-    // silly. Past the first, fall back to backoff so we cannot ping-pong.
-    if (_authRetries >= 1) {
-      _scheduleReconnect(const UnauthorizedException());
-      return;
-    }
-    _authRetries++;
-
-    try {
-      await _tokens.refreshToken();
-      if (!_running) return;
-      unawaited(_connect());
-    } on InvalidCredentialsException {
-      _fail('Sign-in was rejected. Please log in again.');
-    } catch (error) {
-      _scheduleReconnect(error);
-    }
   }
 
   void _fail(String message) {

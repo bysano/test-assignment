@@ -15,8 +15,7 @@ final class Harness {
   Harness({FeedConfig? config, FakeNetworkGate? network})
     : network = network ?? FakeNetworkGate() {
     feed = FeedConnection(
-      transport: transport,
-      tokens: tokens,
+      stream: transport,
       network: this.network,
       config: config ?? const FeedConfig(),
       random: NoJitterRandom(),
@@ -27,7 +26,6 @@ final class Harness {
   }
 
   final FakeSseTransport transport = FakeSseTransport();
-  final FakeTokenProvider tokens = FakeTokenProvider();
   final FakeNetworkGate network;
   late final FeedConnection feed;
 
@@ -75,7 +73,6 @@ void main() {
 
         expect(h.statuses, [const FeedConnecting(0)]);
         expect(h.transport.calls, hasLength(1));
-        expect(h.transport.calls.single.token, 'token-0');
         expect(h.transport.calls.single.lastEventId, isNull);
 
         h.transport.current!.emitTick(id: 1, ts: 1000);
@@ -286,65 +283,46 @@ void main() {
     });
   });
 
-  group('token expiry', () {
-    test('refreshes and retries immediately, with no user involvement', () {
+  // Refreshing is the decorator's job now (see
+  // authorized_sse_transport_test.dart). What matters here is how the feed
+  // reacts to what reaches it.
+  group('authorization failures', () {
+    test('backs off when a 401 survives the decorator\'s refresh', () {
       fakeAsync((async) {
         final h = Harness();
         h.transport.failures.add(const UnauthorizedException());
         h.feed.start();
         async.flushMicrotasks();
 
-        expect(h.tokens.refreshCount, 1);
-        expect(h.transport.calls, hasLength(2));
-        expect(h.transport.calls.last.token, 'token-1');
-        // Straight through — no backoff state was ever shown.
-        expect(h.statuses.whereType<FeedReconnecting>(), isEmpty);
-      });
-    });
-
-    test('handles a 401 that arrives mid-session', () {
-      fakeAsync((async) {
-        final h = Harness();
-        h.goLive(async, id: 7, ts: 1000);
-
-        // The server drops us when the token behind the stream expires.
-        h.transport.current!.endStream();
-        h.transport.failures.add(const UnauthorizedException());
-        async.flushMicrotasks();
-        async.elapse(const Duration(seconds: 1));
-
-        expect(h.tokens.refreshCount, 1);
-        expect(h.transport.calls.last.token, 'token-1');
-        expect(h.transport.calls.last.lastEventId, 7);
-      });
-    });
-
-    test('falls back to backoff rather than ping-ponging on repeat 401s', () {
-      fakeAsync((async) {
-        final h = Harness();
-        h.transport.failures.addAll([
-          const UnauthorizedException(),
-          const UnauthorizedException(),
-        ]);
-        h.feed.start();
-        async.flushMicrotasks();
-
-        expect(h.tokens.refreshCount, 1); // only one free retry
         expect(h.statuses.last, isA<FeedReconnecting>());
+        h.waitOutBackoff(async);
+        expect(h.transport.calls, hasLength(2));
       });
     });
 
     test('stops and reports fatally when the credentials are rejected', () {
       fakeAsync((async) {
         final h = Harness();
-        h.tokens.refreshError = const InvalidCredentialsException();
-        h.transport.failures.add(const UnauthorizedException());
+        h.transport.failures.add(const InvalidCredentialsException());
         h.feed.start();
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 1));
 
         expect(h.statuses.last, isA<FeedFatal>());
         expect(h.transport.calls, hasLength(1)); // gave up rather than spin
+      });
+    });
+
+    test('a mid-session drop reconnects with the resume cursor', () {
+      fakeAsync((async) {
+        final h = Harness();
+        h.goLive(async, id: 7, ts: 1000);
+
+        h.transport.current!.endStream();
+        async.flushMicrotasks();
+        h.waitOutBackoff(async);
+
+        expect(h.transport.calls.last.lastEventId, 7);
       });
     });
   });

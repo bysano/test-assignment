@@ -7,8 +7,11 @@ import 'package:pulse_native/pulse_native.dart';
 import '../auth/auth_repository.dart';
 import '../core/app_config.dart';
 import '../data/api/auth_api.dart';
+import '../data/api/authenticated_client.dart';
 import '../data/api/instruments_api.dart';
+import '../data/api/token_source.dart';
 import '../data/platform/platform_network_gate.dart';
+import '../data/sse/authorized_sse_transport.dart';
 import '../data/sse/http_sse_transport.dart';
 import '../data/sse/sse_transport.dart';
 import '../feed/feed_config.dart';
@@ -48,32 +51,54 @@ abstract class AppModule {
   NetworkGate networkGate(Reachability reachability) =>
       PlatformNetworkGate(reachability);
 
+  /// Deliberately the **raw** client. `/login` is how a token is obtained, so
+  /// routing it through the thing that refreshes tokens would recurse.
   @lazySingleton
   AuthApi authApi(AppConfig config, http.Client client) =>
       AuthApi(baseUrl: config.baseUrl, client: client);
 
   @lazySingleton
-  InstrumentsApi instrumentsApi(AppConfig config, http.Client client) =>
-      InstrumentsApi(baseUrl: config.baseUrl, client: client);
-
-  @lazySingleton
   AuthRepository authRepository(AuthApi api, SecureTokenStore store) =>
       AuthRepository(api: api, store: store);
+
+  /// The one place that knows where tokens come from. Everything below takes
+  /// this rather than [AuthRepository], so no transport depends on the auth
+  /// layer and none of them owns a private copy of the refresh policy.
+  @lazySingleton
+  TokenSource tokenSource(AuthRepository repository) => repository;
+
+  /// Every authenticated REST call goes through here — bearer attached, one
+  /// refresh-and-retry on a 401.
+  @lazySingleton
+  AuthenticatedClient authenticatedClient(
+    http.Client inner,
+    TokenSource tokens,
+  ) => AuthenticatedClient(inner: inner, tokens: tokens);
+
+  @lazySingleton
+  InstrumentsApi instrumentsApi(AppConfig config, AuthenticatedClient client) =>
+      InstrumentsApi(baseUrl: config.baseUrl, client: client);
 
   @lazySingleton
   SseTransport sseTransport(AppConfig config) =>
       HttpSseTransport(baseUrl: config.baseUrl);
 
+  /// The stream's counterpart to [AuthenticatedClient]: same policy, applied
+  /// by decoration because `package:http`'s seam does not reach `dart:io`.
+  @lazySingleton
+  AuthorizedStream authorizedStream(
+    SseTransport transport,
+    TokenSource tokens,
+  ) => AuthorizedSseTransport(transport: transport, tokens: tokens);
+
   @lazySingleton
   FeedConnection feedConnection(
-    SseTransport transport,
-    AuthRepository tokens,
+    AuthorizedStream stream,
     NetworkGate network,
     FeedConfig config,
     Random random,
   ) => FeedConnection(
-    transport: transport,
-    tokens: tokens,
+    stream: stream,
     network: network,
     config: config,
     random: random,

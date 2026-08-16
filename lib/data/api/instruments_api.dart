@@ -6,6 +6,10 @@ import '../models/instrument.dart';
 import 'api_exception.dart';
 
 /// `GET /instruments`.
+///
+/// Takes no token: it is given an [AuthenticatedClient], which attaches the
+/// bearer and renews it on a 401. A 401 reaching here has already survived a
+/// refresh and is a real authorization failure.
 class InstrumentsApi {
   InstrumentsApi({
     required Uri baseUrl,
@@ -19,12 +23,9 @@ class InstrumentsApi {
   final http.Client _client;
   final Duration _timeout;
 
-  Future<List<Instrument>> fetch(String token) async {
+  Future<List<Instrument>> fetch() async {
     final response = await _client
-        .get(
-          _baseUrl.resolve('/instruments'),
-          headers: {'authorization': 'Bearer $token'},
-        )
+        .get(_baseUrl.resolve('/instruments'))
         .timeout(_timeout);
 
     if (response.statusCode == 401) throw const UnauthorizedException();

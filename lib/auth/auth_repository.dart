@@ -4,15 +4,17 @@ import 'package:pulse_native/pulse_native.dart';
 
 import '../data/api/api_exception.dart';
 import '../data/api/auth_api.dart';
-import '../feed/feed_connection.dart';
+import '../data/api/token_source.dart';
 import 'stored_session.dart';
 
 /// Owns the token's whole life: obtaining it, keeping it fresh, persisting it
-/// to the platform's secure store, and handing it to the feed on demand.
+/// to the platform's secure store, and handing it out on demand.
 ///
-/// Implements [FeedTokenProvider], so the feed can refresh a token behind the
-/// user's back without knowing anything about logins or the Keychain.
-class AuthRepository implements FeedTokenProvider {
+/// Implements [TokenSource], so the REST interceptor and the stream decorator
+/// can renew a token behind the user's back without knowing anything about
+/// logins or the Keychain — and without either of them owning a private copy
+/// of the policy.
+class AuthRepository implements TokenSource {
   AuthRepository({
     required AuthApi api,
     required SecureTokenStore store,
@@ -114,6 +116,17 @@ class AuthRepository implements FeedTokenProvider {
   }
 
   @override
+  Future<String> refreshAfter(String rejected) {
+    // Someone already replaced it. A burst of 401s across the REST client and
+    // the stream then costs one login between them, not one each — and we do
+    // not throw away a token that is perfectly good.
+    final current = _token;
+    if (current != null && current != rejected) return Future.value(current);
+    return refreshToken();
+  }
+
+  /// Unconditionally obtains a new token. Prefer [refreshAfter], which avoids
+  /// a login when the token in hand has already been superseded.
   Future<String> refreshToken() {
     return _inFlightRefresh ??= _refresh().whenComplete(() {
       _inFlightRefresh = null;
