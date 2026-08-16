@@ -192,6 +192,49 @@ void main() {
       expect(pipeline.process(tickEvent(id: 2, ts: 1002)), isA<TickAccepted>());
     });
 
+    // The server does not always announce a restart: with a fresh non-empty
+    // buffer it takes the replay branch, finds nothing above our cursor, and
+    // sends nothing. Observed against the real server — the app went on
+    // reporting "live" while every event was discarded and prices froze.
+    test('resequences after a run of duplicates with no gap event', () {
+      pipeline.process(tickEvent(id: 7374, ts: 5000));
+
+      // A restarted server counting up from 1 again.
+      final results = [
+        for (var id = 1; id <= 25; id++)
+          pipeline.process(tickEvent(id: id, ts: 6000 + id)),
+      ];
+
+      expect(results.take(19), everyElement(isA<TickRejected>()));
+      expect(results[19], isA<FeedGapDetected>());
+      expect(results.skip(20), everyElement(isA<TickAccepted>()));
+      expect(pipeline.lastEventId, 25);
+      expect(pipeline.stats.gaps, 1);
+    });
+
+    // Otherwise one silent freeze is swapped for another.
+    test('resequencing forgets stale per-symbol timestamps', () {
+      pipeline.process(tickEvent(id: 7374, ts: 9999999));
+
+      for (var id = 1; id <= 20; id++) {
+        pipeline.process(tickEvent(id: id, ts: 100 + id));
+      }
+
+      // Timestamps far behind the pre-restart ones must still be accepted.
+      expect(pipeline.process(tickEvent(id: 21, ts: 121)), isA<TickAccepted>());
+    });
+
+    test('an isolated duplicate never trips the resequence backstop', () {
+      for (var id = 1; id <= 60; id++) {
+        pipeline.process(tickEvent(id: id, ts: 1000 + id));
+        pipeline.process(tickEvent(id: id, ts: 1000 + id)); // replayed
+      }
+
+      expect(pipeline.stats.gaps, 0);
+      expect(pipeline.stats.duplicates, 60);
+      expect(pipeline.stats.accepted, 60);
+    });
+
     test('does not re-baseline when the resume point is ahead of us', () {
       pipeline.process(tickEvent(id: 100, ts: 1000));
 

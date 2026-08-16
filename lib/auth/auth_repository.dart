@@ -42,9 +42,16 @@ class AuthRepository implements FeedTokenProvider {
   /// finished second as the winner.
   Future<String>? _inFlightRefresh;
 
-  bool get hasSession => _token != null;
+  /// True when we can produce a token — now or by logging in again.
+  bool get hasSession => _username != null;
 
-  /// Restores a still-valid session from secure storage.
+  /// Restores a session from secure storage.
+  ///
+  /// Succeeds on the *credentials*, not on the token: with a 60s TTL the
+  /// stored token is usually dead by the next launch, and refusing to restore
+  /// because of that would make the stored session almost worthless. A live
+  /// token is adopted as a bonus; a dead one is simply left behind and the
+  /// first [currentToken] mints a replacement.
   ///
   /// Returns false — never throws — when there is nothing usable. A Keychain
   /// that misbehaves should cost the user a login prompt, not a crash.
@@ -54,12 +61,17 @@ class AuthRepository implements FeedTokenProvider {
       if (raw == null) return false;
 
       final session = StoredSession.tryParse(raw);
-      if (session == null || !_clock().isBefore(session.expiresAt)) {
+      if (session == null) {
         await _store.delete();
         return false;
       }
-      _token = session.token;
-      _expiresAt = session.expiresAt;
+
+      _username = session.username;
+      _password = session.password;
+      if (_clock().isBefore(session.expiresAt)) {
+        _token = session.token;
+        _expiresAt = session.expiresAt;
+      }
       return true;
     } on SecureStorageException {
       return false;
@@ -71,8 +83,6 @@ class AuthRepository implements FeedTokenProvider {
     required String password,
   }) async {
     final result = await _api.login(username: username, password: password);
-    // Held in memory only, so the feed can re-authenticate for the rest of the
-    // session. Deliberately not persisted — see NOTES.md.
     _username = username;
     _password = password;
     await _adopt(result);
@@ -113,10 +123,9 @@ class AuthRepository implements FeedTokenProvider {
   Future<String> _refresh() async {
     final username = _username;
     final password = _password;
-    // A restored session has a token but no credentials: we can use what we
-    // have until it expires, but we cannot mint a new one. Surfacing this as
-    // rejected credentials sends the user to the login screen, which is the
-    // only thing that can actually fix it.
+    // Only reachable after a sign-out (or with nothing ever stored). Reporting
+    // it as rejected credentials sends the user to the login screen, which is
+    // the only thing that can fix it.
     if (username == null || password == null) {
       throw const InvalidCredentialsException();
     }
@@ -131,7 +140,12 @@ class AuthRepository implements FeedTokenProvider {
     _expiresAt = _clock().add(result.expiresIn);
     try {
       await _store.write(
-        StoredSession(token: result.token, expiresAt: _expiresAt!).encode(),
+        StoredSession(
+          username: _username!,
+          password: _password!,
+          token: result.token,
+          expiresAt: _expiresAt!,
+        ).encode(),
       );
     } on SecureStorageException {
       // Persistence is a convenience; losing it must not fail the sign-in.

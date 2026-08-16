@@ -25,8 +25,18 @@ import 'feed_update.dart';
 ///
 /// Pure Dart, no Flutter, no I/O, no clock.
 class TickPipeline {
+  /// How many duplicates in a row, with nothing accepted between them, before
+  /// we conclude the id sequence restarted rather than that the feed is
+  /// repeating itself.
+  ///
+  /// The server re-sends exactly one buffered event per misbehaviour, so a
+  /// genuine duplicate run is length one, occasionally two. Twenty in a row
+  /// with nothing accepted is not a coincidence.
+  static const int _resetAfterConsecutiveDuplicates = 20;
+
   int? _maxSeenId;
   final Map<String, int> _lastTsBySymbol = {};
+  int _consecutiveDuplicates = 0;
 
   int _accepted = 0;
   int _duplicates = 0;
@@ -60,8 +70,21 @@ class TickPipeline {
 
     final maxSeen = _maxSeenId;
     if (maxSeen != null && id <= maxSeen) {
+      _consecutiveDuplicates++;
+      // A long unbroken run of "duplicates" is not the feed repeating itself,
+      // it is the id sequence having restarted underneath us — a server
+      // bounce. The server does not always announce that with a gap event:
+      // if its fresh buffer is non-empty it takes the replay branch, finds
+      // nothing above our cursor, and says nothing at all. Left alone we
+      // would reject every future event while still reporting "live", which
+      // is precisely the frozen-prices-look-live failure this app must not
+      // have.
+      if (_consecutiveDuplicates >= _resetAfterConsecutiveDuplicates) {
+        return _resequence(id);
+      }
       return _reject(RejectReason.duplicate);
     }
+    _consecutiveDuplicates = 0;
     // Advance on *receipt*, not on acceptance: an event we drop as stale was
     // still delivered, and resuming from before it would re-deliver it.
     _maxSeenId = id;
@@ -86,12 +109,31 @@ class TickPipeline {
     final resumeFrom = _resumeFromOf(event.data);
 
     // A gap whose resume point sits *behind* our cursor means the id sequence
-    // restarted — a server bounce. Without re-baselining, every subsequent
-    // event would look like a duplicate and the app would freeze silently.
+    // restarted. Catching it here is the cheap path; [_resequence] is the
+    // backstop for when the server restarts without announcing anything.
     if (resumeFrom != null && _maxSeenId != null && resumeFrom < _maxSeenId!) {
-      _maxSeenId = resumeFrom > 0 ? resumeFrom - 1 : null;
+      _rebaseline(resumeFrom > 0 ? resumeFrom - 1 : null);
     }
     return FeedGapDetected(resumeFrom);
+  }
+
+  /// Adopts a restarted id sequence, accepting [id] and everything after it.
+  ///
+  /// Reported as a gap because that is what it is: the stream we were reading
+  /// ended and a different one began, and whatever was in flight is gone.
+  FeedUpdate _resequence(int id) {
+    _gaps++;
+    _rebaseline(id - 1);
+    return FeedGapDetected(id);
+  }
+
+  void _rebaseline(int? maxSeenId) {
+    _maxSeenId = maxSeenId;
+    _consecutiveDuplicates = 0;
+    // A restarted server may also be behind on wall-clock time. Holding on to
+    // the old per-symbol timestamps would then reject every new tick as stale
+    // — swapping one silent freeze for another.
+    _lastTsBySymbol.clear();
   }
 
   int? _resumeFromOf(String data) {
