@@ -1,29 +1,22 @@
 #
-# To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
-# Run `pod lib lint pulse_native.podspec` to validate before publishing.
+# Local plugin for Pulse. Not published; consumed by path dependency.
 #
 Pod::Spec.new do |s|
   s.name             = 'pulse_native'
   s.version          = '0.0.1'
-  s.summary          = 'A new Flutter plugin project.'
+  s.summary          = 'Keychain token storage and NWPathMonitor reachability for Pulse.'
   s.description      = <<-DESC
-A new Flutter plugin project.
+Two platform channels: a MethodChannel backing the auth token with the iOS
+Keychain, and an EventChannel streaming NWPathMonitor reachability changes.
                        DESC
-  s.homepage         = 'http://example.com'
+  s.homepage         = 'https://example.com/pulse'
   s.license          = { :file => '../LICENSE' }
-  s.author           = { 'Your Company' => 'email@example.com' }
+  s.author           = { 'Pulse' => 'pulse@example.com' }
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
   s.platform = :ios, '13.0'
 
-  # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
   s.swift_version = '5.0'
-
-  # If your plugin requires a privacy manifest, for example if it uses any
-  # required reason APIs, update the PrivacyInfo.xcprivacy file to describe your
-  # plugin's privacy impact, and then uncomment this line. For more information,
-  # see https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-  # s.resource_bundles = {'pulse_native_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
 end

@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - pulse_native (0.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - pulse_native (from `.symlinks/plugins/pulse_native/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  pulse_native:
+    :path: ".symlinks/plugins/pulse_native/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  pulse_native: 2d5c58d8cfeaebdee0b6aa732edbde971c11c461
+
+PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
+
+COCOAPODS: 1.16.2

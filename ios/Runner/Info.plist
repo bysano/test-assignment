@@ -26,6 +26,17 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- The feed server is plain HTTP on the local network. This narrowly
+	     re-allows cleartext for local destinations only, rather than
+	     disabling App Transport Security outright. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- Required on a physical device when reaching the Mac by LAN address. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Pulse connects to the market data feed running on your local network.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
