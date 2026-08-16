@@ -19,14 +19,18 @@ network — see `PulseNative` in `packages/pulse_native/lib/pulse_native.dart`.
 
 ## Run it
 
-**1. Start the feed server** (from the repo root, chaotic mode — the one to
-build against):
+**1. Start the feed server** (chaotic mode — the one this is built against):
 
 ```bash
 dart run "Finonex home assignment July 2026/feed_server.dart"
 ```
 
 Add `--calm` to turn the misbehaviour off while poking at the UI.
+
+> The assignment folder holding `feed_server.dart` is **not committed** — it is
+> Finonex's material, not mine to republish. Drop your own copy at the repo
+> root and the command above works as written; from anywhere else, point
+> `dart run` at wherever you keep it.
 
 **2. Run the app** on an iOS simulator:
 

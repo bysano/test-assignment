@@ -48,3 +48,6 @@ app.*.map.json
 /ios/Pods/
 /ios/.symlinks/
 /ios/Flutter/Flutter.podspec
+
+# Supplied with the assignment; not ours to redistribute.
+/Finonex home assignment July 2026/
