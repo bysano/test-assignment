@@ -157,6 +157,23 @@ the frozen-prices-look-live failure, arriving through the one door I had not
 checked. Four tests in `watchlist_bloc_test.dart` now cover it; all four fail
 if either clear is removed.
 
+Signing out mid-load is the same boundary from the other side, and it was
+broken too. `_load()` awaits the network and then dispatches, so a sign-out
+landing in between hit a disposed bloc: `add()` threw, the broad `catch`
+swallowed that `StateError` as though it were a network fault, and answered it
+with a *second* `add()` that nothing was left to catch. `_load()` now resolves
+to one outcome and dispatches it exactly once, guarded, with the `try`
+covering only the awaits — so a dispatch failure can no longer be mistaken for
+a network failure. Five more tests cover it.
+
+The guard is `!_closing && !isClosed` rather than `isClosed` alone.
+`Bloc.close()` shuts its event controller first and only flips `isClosed`
+three awaits later in `super.close()`, so a continuation resuming in between
+would find `isClosed == false` and still throw. In fairness that window is
+narrow and my tests never land in it — the flag is reasoned from bloc's
+source, not driven by a red test — but the failure mode is an unhandled
+exception, so it stays.
+
 ### Two bugs that only running against the real server found
 
 **Bouncing the server froze the app while it still said "Live"** — the exact

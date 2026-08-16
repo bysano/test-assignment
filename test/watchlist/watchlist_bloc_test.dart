@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -25,12 +27,17 @@ void main() {
   late int instrumentCalls;
   late List<http.Response> instrumentResponses;
 
+  /// When set, `/instruments` hangs until it completes — lets a test close the
+  /// bloc while the request is still in flight.
+  Completer<void>? instrumentsGate;
+
   final baseUrl = Uri.parse('http://localhost:8080');
 
   WatchlistBloc buildBloc() {
     final instruments = InstrumentsApi(
       baseUrl: baseUrl,
       client: MockClient((_) async {
+        await instrumentsGate?.future;
         final response =
             instrumentResponses[instrumentCalls.clamp(
               0,
@@ -53,6 +60,7 @@ void main() {
     quotes = QuoteStore(flushInterval: const Duration(milliseconds: 10));
     instrumentCalls = 0;
     instrumentResponses = [http.Response(_instrumentsJson, 200)];
+    instrumentsGate = null;
 
     auth = AuthRepository(
       api: AuthApi(
@@ -220,6 +228,86 @@ void main() {
       final state = await bloc.stream.firstWhere((s) => s.stats.gaps == 1);
       expect(state.stats.accepted, 1);
       await bloc.close();
+    });
+  });
+
+  // Signing out disposes the bloc, and that can land in the middle of the
+  // instrument load. Every add() below happens after an await, so each one is
+  // a chance to touch a closed bloc.
+  group('closing mid-flight', () {
+    test('closing during the instrument load throws nothing', () async {
+      instrumentsGate = Completer<void>();
+      final bloc = buildBloc()..add(const WatchlistStarted());
+      await pumpEventQueue(); // let it reach the in-flight fetch
+
+      await bloc.close();
+      instrumentsGate!.complete(); // the response lands after close
+      await pumpEventQueue();
+
+      expect(bloc.isClosed, isTrue);
+    });
+
+    test('closing during the load leaves the state untouched', () async {
+      instrumentsGate = Completer<void>();
+      final bloc = buildBloc()..add(const WatchlistStarted());
+      await pumpEventQueue();
+
+      await bloc.close();
+      instrumentsGate!.complete();
+      await pumpEventQueue();
+
+      // Never reached ready, and never reported a bogus failure either.
+      expect(bloc.state.status, WatchlistStatus.loading);
+      expect(bloc.state.error, isNull);
+    });
+
+    // The original crash doubled up: add() threw, the broad catch swallowed
+    // that StateError as if it were a network fault, and then called add()
+    // again — and nothing was left to catch the second throw.
+    test('closing while the load is failing throws nothing', () async {
+      instrumentResponses = [http.Response('boom', 500)];
+      instrumentsGate = Completer<void>();
+      final bloc = buildBloc()..add(const WatchlistStarted());
+      await pumpEventQueue();
+
+      await bloc.close();
+      instrumentsGate!.complete();
+      await pumpEventQueue();
+
+      expect(bloc.state.status, WatchlistStatus.loading);
+    });
+
+    // close() is not instantaneous — it awaits several times before isClosed
+    // flips. Here the load's continuation lands while close() is still in
+    // progress, rather than safely after it.
+    test('a load landing mid-close throws nothing', () async {
+      instrumentsGate = Completer<void>();
+      final bloc = buildBloc()..add(const WatchlistStarted());
+      await pumpEventQueue();
+
+      final closing = bloc.close(); // deliberately not awaited yet
+      instrumentsGate!.complete();
+      await closing;
+      await pumpEventQueue();
+
+      expect(bloc.isClosed, isTrue);
+      expect(bloc.state.status, WatchlistStatus.loading);
+    });
+
+    test('closing during a retry throws nothing', () async {
+      instrumentResponses = [http.Response('boom', 500)];
+      final bloc = buildBloc()..add(const WatchlistStarted());
+      await bloc.stream.firstWhere((s) => s.status == WatchlistStatus.failure);
+
+      instrumentsGate = Completer<void>();
+      bloc.add(const WatchlistRetryRequested());
+      await pumpEventQueue();
+
+      await bloc.close();
+      instrumentsGate!.complete();
+      await pumpEventQueue();
+
+      expect(bloc.isClosed, isTrue);
     });
   });
 
