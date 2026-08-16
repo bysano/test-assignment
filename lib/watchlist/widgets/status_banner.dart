@@ -28,13 +28,19 @@ class StatusBanner extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      size: 18, color: presentation.color),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: presentation.color,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       presentation.detail,
-                      style: TextStyle(fontSize: 12.5, color: presentation.color),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: presentation.color,
+                      ),
                     ),
                   ),
                 ],

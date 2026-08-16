@@ -33,7 +33,9 @@ class InstrumentsApi {
     }
 
     final Object? json = jsonDecode(response.body);
-    if (json is! List) throw ApiException(200, 'malformed instruments response');
+    if (json is! List) {
+      throw ApiException(200, 'malformed instruments response');
+    }
 
     // Skip unparseable entries rather than failing the whole list: one bad
     // instrument should not cost the user the other thirty-nine.

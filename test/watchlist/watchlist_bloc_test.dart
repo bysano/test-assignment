@@ -1,4 +1,3 @@
-
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -32,10 +31,11 @@ void main() {
     final instruments = InstrumentsApi(
       baseUrl: baseUrl,
       client: MockClient((_) async {
-        final response = instrumentResponses[instrumentCalls.clamp(
-          0,
-          instrumentResponses.length - 1,
-        )];
+        final response =
+            instrumentResponses[instrumentCalls.clamp(
+              0,
+              instrumentResponses.length - 1,
+            )];
         instrumentCalls++;
         return response;
       }),

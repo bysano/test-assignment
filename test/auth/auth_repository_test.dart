@@ -168,15 +168,17 @@ void main() {
       expect(logins, 3);
     });
 
-    test('reports rejected credentials when there is nothing to log in with',
-        () async {
-      final repository = buildRepository();
+    test(
+      'reports rejected credentials when there is nothing to log in with',
+      () async {
+        final repository = buildRepository();
 
-      await expectLater(
-        repository.refreshToken(),
-        throwsA(isA<InvalidCredentialsException>()),
-      );
-    });
+        await expectLater(
+          repository.refreshToken(),
+          throwsA(isA<InvalidCredentialsException>()),
+        );
+      },
+    );
   });
 
   group('restore', () {
@@ -207,22 +209,24 @@ void main() {
       expect(logins, 1);
     });
 
-    test('renews a restored session indefinitely, with no user involvement',
-        () async {
-      store.value = storedSession(
-        token: 'stale',
-        expiresAt: now.subtract(const Duration(seconds: 1)),
-      );
-      final repository = buildRepository();
-      await repository.restore();
+    test(
+      'renews a restored session indefinitely, with no user involvement',
+      () async {
+        store.value = storedSession(
+          token: 'stale',
+          expiresAt: now.subtract(const Duration(seconds: 1)),
+        );
+        final repository = buildRepository();
+        await repository.restore();
 
-      for (var minute = 0; minute < 5; minute++) {
-        expect(await repository.currentToken(), isNotEmpty);
-        now = now.add(const Duration(seconds: 60));
-      }
+        for (var minute = 0; minute < 5; minute++) {
+          expect(await repository.currentToken(), isNotEmpty);
+          now = now.add(const Duration(seconds: 60));
+        }
 
-      expect(logins, 5);
-    });
+        expect(logins, 5);
+      },
+    );
 
     test('returns false when nothing is stored', () async {
       expect(await buildRepository().restore(), isFalse);
@@ -255,17 +259,20 @@ void main() {
       expect(store.deletes, 1);
     });
 
-    test('forgets the credentials, so no silent re-login is possible', () async {
-      final repository = buildRepository();
-      await repository.signIn(username: 'trader', password: 'password123');
+    test(
+      'forgets the credentials, so no silent re-login is possible',
+      () async {
+        final repository = buildRepository();
+        await repository.signIn(username: 'trader', password: 'password123');
 
-      await repository.signOut();
+        await repository.signOut();
 
-      await expectLater(
-        repository.refreshToken(),
-        throwsA(isA<InvalidCredentialsException>()),
-      );
-    });
+        await expectLater(
+          repository.refreshToken(),
+          throwsA(isA<InvalidCredentialsException>()),
+        );
+      },
+    );
   });
 
   test('StoredSession round-trips through JSON', () {
@@ -287,7 +294,9 @@ void main() {
 
   test('StoredSession rejects a payload missing its credentials', () {
     expect(
-      StoredSession.tryParse('{"token":"abc","expiresAt":"2026-01-01T00:00:00Z"}'),
+      StoredSession.tryParse(
+        '{"token":"abc","expiresAt":"2026-01-01T00:00:00Z"}',
+      ),
       isNull,
     );
   });

@@ -24,7 +24,10 @@ void main() {
         }),
       );
 
-      final result = await api.login(username: 'trader', password: 'password123');
+      final result = await api.login(
+        username: 'trader',
+        password: 'password123',
+      );
 
       expect(result.token, 'abc');
       expect(result.expiresIn, const Duration(seconds: 60));
@@ -50,7 +53,10 @@ void main() {
         client: MockClient((_) async => http.Response('{"token":"abc"}', 200)),
       );
 
-      final result = await api.login(username: 'trader', password: 'password123');
+      final result = await api.login(
+        username: 'trader',
+        password: 'password123',
+      );
 
       expect(result.expiresIn, const Duration(seconds: 60));
     });

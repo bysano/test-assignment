@@ -26,5 +26,6 @@ final class ApiException implements Exception {
   final String? body;
 
   @override
-  String toString() => 'ApiException($statusCode)${body == null ? '' : ': $body'}';
+  String toString() =>
+      'ApiException($statusCode)${body == null ? '' : ': $body'}';
 }

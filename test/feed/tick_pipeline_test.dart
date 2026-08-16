@@ -63,8 +63,14 @@ void main() {
       pipeline.process(tickEvent(id: 10, ts: 1000));
 
       expect(pipeline.process(tickEvent(id: 9, ts: 1001)), isA<TickRejected>());
-      expect(pipeline.process(tickEvent(id: 10, ts: 1001)), isA<TickRejected>());
-      expect(pipeline.process(tickEvent(id: 11, ts: 1001)), isA<TickAccepted>());
+      expect(
+        pipeline.process(tickEvent(id: 10, ts: 1001)),
+        isA<TickRejected>(),
+      );
+      expect(
+        pipeline.process(tickEvent(id: 11, ts: 1001)),
+        isA<TickAccepted>(),
+      );
     });
 
     test('leaves the resume cursor untouched', () {
@@ -118,7 +124,11 @@ void main() {
   group('malformed events', () {
     test('rejects the garbage payload the feed injects', () {
       final result = pipeline.process(
-        const SseEvent(id: null, event: 'message', data: '###garbage-not-json###'),
+        const SseEvent(
+          id: null,
+          event: 'message',
+          data: '###garbage-not-json###',
+        ),
       );
 
       expect((result as TickRejected).reason, RejectReason.malformed);
@@ -153,7 +163,9 @@ void main() {
     });
 
     test('keeps processing after malformed input', () {
-      pipeline.process(const SseEvent(id: null, event: 'message', data: 'junk'));
+      pipeline.process(
+        const SseEvent(id: null, event: 'message', data: 'junk'),
+      );
 
       expect(pipeline.process(tickEvent(id: 1, ts: 1000)), isA<TickAccepted>());
     });
@@ -243,7 +255,10 @@ void main() {
       );
 
       expect(pipeline.lastEventId, 100);
-      expect(pipeline.process(tickEvent(id: 50, ts: 1001)), isA<TickRejected>());
+      expect(
+        pipeline.process(tickEvent(id: 50, ts: 1001)),
+        isA<TickRejected>(),
+      );
     });
   });
 

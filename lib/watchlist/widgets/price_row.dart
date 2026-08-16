@@ -19,11 +19,7 @@ import '../quote_store.dart';
 ///   sixty animation frames repaint a `ColoredBox` without rebuilding the
 ///   price text even once.
 class PriceRow extends StatefulWidget {
-  const PriceRow({
-    required this.instrument,
-    required this.quotes,
-    super.key,
-  });
+  const PriceRow({required this.instrument, required this.quotes, super.key});
 
   static const double height = 62;
 
@@ -145,7 +141,10 @@ class _Identity extends StatelessWidget {
           instrument.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.white.withValues(alpha: 0.5),
+          ),
         ),
       ],
     );

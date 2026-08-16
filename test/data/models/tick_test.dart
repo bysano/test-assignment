@@ -20,7 +20,10 @@ void main() {
     // JSON has no int/double distinction, so a whole-number price such as
     // JPN225's 41190 arrives as an int and must not be rejected.
     test('accepts integral prices', () {
-      final tick = Tick.tryParse(1, '{"s":"JPN225","b":41190,"a":41192,"ts":5}');
+      final tick = Tick.tryParse(
+        1,
+        '{"s":"JPN225","b":41190,"a":41192,"ts":5}',
+      );
 
       expect(tick, isNotNull);
       expect(tick!.bid, 41190.0);

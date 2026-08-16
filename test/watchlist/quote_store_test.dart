@@ -186,7 +186,10 @@ void main() {
     test('returns the same listenable for a symbol every time', () {
       store.prime(['EURUSD']);
 
-      expect(identical(store.listenTo('EURUSD'), store.listenTo('EURUSD')), isTrue);
+      expect(
+        identical(store.listenTo('EURUSD'), store.listenTo('EURUSD')),
+        isTrue,
+      );
     });
 
     test('clear drops every price', () {

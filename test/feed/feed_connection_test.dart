@@ -1,4 +1,3 @@
-
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pulse/data/api/api_exception.dart';
@@ -353,7 +352,8 @@ void main() {
   group('device offline', () {
     test('does not attempt to connect while known offline', () {
       fakeAsync((async) {
-        final h = Harness(network: FakeNetworkGate(online: false))..feed.start();
+        final h = Harness(network: FakeNetworkGate(online: false))
+          ..feed.start();
         async.flushMicrotasks();
         async.elapse(const Duration(minutes: 2));
 
@@ -395,7 +395,8 @@ void main() {
 
     test('reconnects immediately when the network returns', () {
       fakeAsync((async) {
-        final h = Harness(network: FakeNetworkGate(online: false))..feed.start();
+        final h = Harness(network: FakeNetworkGate(online: false))
+          ..feed.start();
         async.flushMicrotasks();
 
         h.network.setOnline(true);
@@ -415,7 +416,9 @@ void main() {
         h.goLive(async, id: 1, ts: 1000);
 
         h.transport.current!
-          ..emit(const SseEvent(id: null, event: 'message', data: '###garbage###'))
+          ..emit(
+            const SseEvent(id: null, event: 'message', data: '###garbage###'),
+          )
           ..emitTick(id: 2, ts: 2000);
         async.flushMicrotasks();
 
@@ -431,7 +434,9 @@ void main() {
         h.goLive(async, id: 1, ts: 1000);
 
         h.transport.current!
-          ..emit(const SseEvent(id: null, event: 'gap', data: '{"resumeFrom":900}'))
+          ..emit(
+            const SseEvent(id: null, event: 'gap', data: '{"resumeFrom":900}'),
+          )
           ..emitTick(id: 901, ts: 2000);
         async.flushMicrotasks();
 

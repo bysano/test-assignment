@@ -35,7 +35,9 @@ abstract interface class SecureTokenStore {
 class MethodChannelSecureTokenStore implements SecureTokenStore {
   const MethodChannelSecureTokenStore();
 
-  static const MethodChannel channel = MethodChannel('pulse/secure_token_store');
+  static const MethodChannel channel = MethodChannel(
+    'pulse/secure_token_store',
+  );
 
   @override
   Future<void> write(String token) =>

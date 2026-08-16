@@ -83,12 +83,15 @@ void main() {
     expect(transitions, [false, true]);
   });
 
-  test('a channel error leaves us optimistic rather than stuck offline', () async {
-    reachability.controller
-      ..add(NetworkStatus.offline)
-      ..addError(Exception('channel died'));
-    await pumpEventQueue();
+  test(
+    'a channel error leaves us optimistic rather than stuck offline',
+    () async {
+      reachability.controller
+        ..add(NetworkStatus.offline)
+        ..addError(Exception('channel died'));
+      await pumpEventQueue();
 
-    expect(gate.isOnline, isTrue);
-  });
+      expect(gate.isOnline, isTrue);
+    },
+  );
 }

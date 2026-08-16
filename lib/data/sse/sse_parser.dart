@@ -90,7 +90,11 @@ class SseParser {
     // Spec: a blank line with no data buffered dispatches nothing.
     if (_hasData) {
       out.add(
-        SseEvent(id: _lastId, event: _event ?? 'message', data: _data.toString()),
+        SseEvent(
+          id: _lastId,
+          event: _event ?? 'message',
+          data: _data.toString(),
+        ),
       );
     }
     _data.clear();

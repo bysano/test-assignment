@@ -86,7 +86,11 @@ void main() {
       expect(
         store.read(),
         throwsA(
-          isA<SecureStorageException>().having((e) => e.code, 'code', 'unimplemented'),
+          isA<SecureStorageException>().having(
+            (e) => e.code,
+            'code',
+            'unimplemented',
+          ),
         ),
       );
     });

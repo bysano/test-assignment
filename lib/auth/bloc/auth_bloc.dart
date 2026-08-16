@@ -45,9 +45,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       emit(const AuthAuthenticated());
     } on InvalidCredentialsException {
-      emit(const AuthUnauthenticated(message: 'Incorrect username or password.'));
+      emit(
+        const AuthUnauthenticated(message: 'Incorrect username or password.'),
+      );
     } on ApiException {
-      emit(const AuthUnauthenticated(message: 'The server rejected the sign-in.'));
+      emit(
+        const AuthUnauthenticated(message: 'The server rejected the sign-in.'),
+      );
     } catch (_) {
       // Almost always the feed server not running yet — worth saying plainly
       // rather than as a stack trace.

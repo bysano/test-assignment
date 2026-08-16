@@ -62,7 +62,9 @@ class _HttpSseSubscription implements SseSubscription {
   _HttpSseSubscription(this._client, HttpClientResponse response) {
     final parser = SseParser();
     _socket = response
-        .transform(utf8.decoder) // handles multi-byte chars split across packets
+        .transform(
+          utf8.decoder,
+        ) // handles multi-byte chars split across packets
         .listen(
           (chunk) {
             for (final frame in parser.add(chunk)) {

@@ -73,9 +73,17 @@ class WatchlistBloc extends Bloc<WatchlistEvent, WatchlistState> {
     } on UnauthorizedException {
       // The token died between minting and use; one refresh and one retry.
       try {
-        add(_InstrumentsLoaded(await _instruments.fetch(await _auth.refreshToken())));
+        add(
+          _InstrumentsLoaded(
+            await _instruments.fetch(await _auth.refreshToken()),
+          ),
+        );
       } catch (_) {
-        add(const _LoadFailed('Could not load instruments. Please sign in again.'));
+        add(
+          const _LoadFailed(
+            'Could not load instruments. Please sign in again.',
+          ),
+        );
       }
     } on InvalidCredentialsException {
       add(const _LoadFailed('Session expired. Please sign in again.'));
