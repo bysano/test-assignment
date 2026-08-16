@@ -136,6 +136,27 @@ A generation counter invalidates callbacks from superseded connection
 attempts, so the paired `onError` + `onDone` of a dying socket cannot schedule
 two reconnects.
 
+### Session boundaries
+
+`QuoteStore` and `FeedConnection` are both singletons, so they outlive any one
+`WatchlistBloc`. That makes signing out and back in a real boundary that has
+to be swept, and the rule is: **a reconnect keeps everything, a new session
+keeps nothing.**
+
+A reconnect must retain the resume cursor and the per-symbol timestamps — the
+cursor is exactly what makes replay work. A new sign-in must not: it should
+show current market state, and its counters should describe its own traffic.
+So `FeedConnection.stop()` resets the pipeline, and the bloc clears the quote
+store both when it closes *and* at the start of the next session. The second
+of those is what actually guarantees the invariant, because it holds even if
+the previous bloc was never closed cleanly.
+
+Caught in review, not by me. Before the fix, a second sign-in went `Live` on
+its first heartbeat while rows still showed the previous session's prices —
+the frozen-prices-look-live failure, arriving through the one door I had not
+checked. Four tests in `watchlist_bloc_test.dart` now cover it; all four fail
+if either clear is removed.
+
 ### Two bugs that only running against the real server found
 
 **Bouncing the server froze the app while it still said "Live"** — the exact

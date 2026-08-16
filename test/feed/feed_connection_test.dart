@@ -463,6 +463,41 @@ void main() {
       });
     });
 
+    // stop() ends a session. A reconnect must keep the cursor and counters —
+    // that is what makes replay work — but a fresh session must not inherit
+    // them, or its diagnostics describe the previous user's traffic.
+    test('stop forgets the resume cursor and the counters', () {
+      fakeAsync((async) {
+        final h = Harness();
+        h.goLive(async, id: 42, ts: 1000);
+        h.transport.current!.emitTick(id: 42, ts: 1000); // duplicate
+        async.flushMicrotasks();
+        expect(h.feed.stats.accepted, 1);
+        expect(h.feed.stats.duplicates, 1);
+
+        h.feed.stop();
+
+        expect(h.feed.stats, const FeedStats());
+        h.feed.start();
+        async.flushMicrotasks();
+        expect(h.transport.calls.last.lastEventId, isNull);
+      });
+    });
+
+    test('a reconnect keeps them, unlike a stop', () {
+      fakeAsync((async) {
+        final h = Harness();
+        h.goLive(async, id: 42, ts: 1000);
+
+        h.transport.current!.endStream();
+        async.flushMicrotasks();
+        h.waitOutBackoff(async);
+
+        expect(h.feed.stats.accepted, 1);
+        expect(h.transport.calls.last.lastEventId, 42);
+      });
+    });
+
     test('start is idempotent', () {
       fakeAsync((async) {
         final h = Harness()

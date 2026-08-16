@@ -149,6 +149,23 @@ class TickPipeline {
     return null;
   }
 
+  /// Forgets everything: resume cursor, per-symbol timestamps and counters.
+  ///
+  /// For ending a *session*, not a connection. A reconnect must keep all of
+  /// this — the cursor is what makes replay work — but a new sign-in should
+  /// start from current market state, and its counters should describe it
+  /// rather than the previous user's.
+  void reset() {
+    _maxSeenId = null;
+    _consecutiveDuplicates = 0;
+    _lastTsBySymbol.clear();
+    _accepted = 0;
+    _duplicates = 0;
+    _stale = 0;
+    _malformed = 0;
+    _gaps = 0;
+  }
+
   FeedUpdate _reject(RejectReason reason) {
     switch (reason) {
       case RejectReason.duplicate:

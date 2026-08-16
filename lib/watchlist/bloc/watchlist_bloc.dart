@@ -96,9 +96,17 @@ class WatchlistBloc extends Bloc<WatchlistEvent, WatchlistState> {
     _InstrumentsLoaded event,
     Emitter<WatchlistState> emit,
   ) {
-    // Create every notifier before the list is built, so rows never mutate the
-    // store while building.
+    // The store is a singleton and outlives this bloc, so a second sign-in
+    // would otherwise inherit the first session's prices — and go on showing
+    // them while the badge already read "Live", which is exactly the
+    // frozen-prices-look-live failure this app must not have.
+    //
+    // Clearing at session *start* rather than only at sign-out is the stronger
+    // guarantee: it holds even if the previous bloc was never closed cleanly.
+    // Then prime, so every notifier exists before the list is built and rows
+    // never mutate the store while building.
     _quotes
+      ..clear()
       ..prime(event.instruments.map((i) => i.symbol))
       ..bindTo(_feed.ticks);
 
@@ -134,6 +142,11 @@ class WatchlistBloc extends Bloc<WatchlistEvent, WatchlistState> {
     await _statuses?.cancel();
     await _gaps?.cancel();
     _feed.stop();
+    // Unbind before clearing, or a tick already in flight could repopulate the
+    // store we just emptied. Belt and braces alongside the clear at session
+    // start: this one also keeps a signed-out user's prices out of memory.
+    await _quotes.detach();
+    _quotes.clear();
     await super.close();
   }
 }

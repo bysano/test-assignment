@@ -223,6 +223,78 @@ void main() {
     });
   });
 
+  // The store is a singleton and outlives any one watchlist session, so
+  // nothing from a previous sign-in may survive into the next one.
+  group('session isolation', () {
+    /// Brings a session up and gets one price on screen for EURUSD.
+    Future<WatchlistBloc> liveSessionWithPrices() async {
+      final bloc = buildBloc()..add(const WatchlistStarted());
+      await bloc.stream.firstWhere((s) => s.connection is FeedConnecting);
+      transport.current!.emitTick(id: 1, ts: 1000);
+      await bloc.stream.firstWhere((s) => s.connection is FeedLive);
+      await Future<void>.delayed(const Duration(milliseconds: 20)); // flush
+      expect(quotes.listenTo('EURUSD').value, isNotNull);
+      return bloc;
+    }
+
+    test('signing out drops the prices', () async {
+      final bloc = await liveSessionWithPrices();
+
+      await bloc.close();
+
+      expect(quotes.listenTo('EURUSD').value, isNull);
+    });
+
+    // The reported bug: after signing back in, the first heartbeat marked the
+    // connection live while rows still showed the previous session's prices.
+    test(
+      'a new session is not live with the previous session\'s prices',
+      () async {
+        await (await liveSessionWithPrices()).close();
+
+        final next = buildBloc()..add(const WatchlistStarted());
+        await next.stream.firstWhere((s) => s.connection is FeedConnecting);
+        transport.current!.emit(const SseComment('ping'));
+        await next.stream.firstWhere((s) => s.connection is FeedLive);
+
+        // Live, but nothing of its own to show yet — which is correct. A stale
+        // price here would be presented to the user as a current one.
+        expect(next.state.connection, isA<FeedLive>());
+        expect(quotes.listenTo('EURUSD').value, isNull);
+        expect(quotes.listenTo('GBPUSD').value, isNull);
+
+        await next.close();
+      },
+    );
+
+    // Clearing at session start, not just on close, is what makes this hold.
+    test(
+      'a new session starts clean even if the last was never closed',
+      () async {
+        final leaked = await liveSessionWithPrices();
+
+        final next = buildBloc()..add(const WatchlistStarted());
+        await next.stream.firstWhere((s) => s.status == WatchlistStatus.ready);
+
+        expect(quotes.listenTo('EURUSD').value, isNull);
+
+        await leaked.close();
+        await next.close();
+      },
+    );
+
+    test('a closed session stops feeding the store', () async {
+      final bloc = await liveSessionWithPrices();
+      final connection = transport.current!;
+
+      await bloc.close();
+      connection.emitTick(id: 99, ts: 9999);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(quotes.listenTo('EURUSD').value, isNull);
+    });
+  });
+
   test('closing the bloc tears the feed down', () async {
     final bloc = buildBloc()..add(const WatchlistStarted());
     await bloc.stream.firstWhere((s) => s.connection is FeedConnecting);

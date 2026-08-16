@@ -118,6 +118,11 @@ class FeedConnection {
     _teardown();
     _attempt = 0;
     _authRetries = 0;
+    // stop() ends a session, not a connection — reconnects never come through
+    // here. So the resume cursor and the counters go too: the next sign-in
+    // wants current market state, and a diagnostics line describing the
+    // previous user's session would be reporting stale numbers as current.
+    _pipeline.reset();
     _emit(const FeedIdle());
   }
 

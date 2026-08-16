@@ -85,8 +85,20 @@ class QuoteStore {
   ValueNotifier<Quote?> _notifierFor(String symbol) =>
       _quotes.putIfAbsent(symbol, () => ValueNotifier<Quote?>(null));
 
-  /// Drops every price. Used on sign-out so a new session cannot flash against
-  /// the previous user's numbers.
+  /// Stops consuming ticks. The counterpart to [bindTo].
+  ///
+  /// The store outlives any one watchlist session, so whoever bound it has to
+  /// unbind it; otherwise a closed bloc leaves a live subscription behind.
+  Future<void> detach() async {
+    await _ticks?.cancel();
+    _ticks = null;
+  }
+
+  /// Drops every price, so a new session cannot display — or flash against —
+  /// the previous one's numbers.
+  ///
+  /// Also drops anything queued for the next flush: a tick that arrived just
+  /// before sign-out must not land after it.
   void clear() {
     _flush?.cancel();
     _flush = null;
