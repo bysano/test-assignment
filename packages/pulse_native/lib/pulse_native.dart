@@ -1,8 +1,4 @@
-
-import 'pulse_native_platform_interface.dart';
-
-class PulseNative {
-  Future<String?> getPlatformVersion() {
-    return PulseNativePlatform.instance.getPlatformVersion();
-  }
-}
+/// Platform channels for Pulse.
+///
+/// Public API lands here in the next commit; see `lib/src/`.
+library;

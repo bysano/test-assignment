@@ -4,6 +4,8 @@ analyzer:
   exclude:
     - "**/*.g.dart"
     - "**/*.config.dart"
+    # Supplied with the assignment; not ours to lint.
+    - "Finonex home assignment July 2026/**"
   errors:
     # Generated DI registration is not const-friendly.
     prefer_const_constructors: warning
