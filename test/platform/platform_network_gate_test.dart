@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pulse/data/platform/platform_network_gate.dart';
+import 'package:pulse/features/watchlist/data/network/platform_network_gate.dart';
 import 'package:pulse_native/pulse_native.dart';
 
 class _FakeReachability implements Reachability {

@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:pulse/auth/auth_repository.dart';
-import 'package:pulse/data/api/api_exception.dart';
-import 'package:pulse/data/api/auth_api.dart';
-import 'package:pulse/data/api/authenticated_client.dart';
+import 'package:pulse/core/errors/api_exception.dart';
+import 'package:pulse/features/auth/data/auth_api.dart';
+import 'package:pulse/features/auth/data/auth_repository.dart';
+import 'package:pulse/features/auth/data/authenticated_client.dart';
 import 'package:pulse_native/pulse_native.dart';
 
 /// One token serves the REST client and the stream, so a single expiry 401s

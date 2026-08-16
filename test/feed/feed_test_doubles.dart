@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:pulse/data/sse/authorized_sse_transport.dart';
-import 'package:pulse/data/sse/sse_frame.dart';
-import 'package:pulse/data/sse/sse_transport.dart';
-import 'package:pulse/feed/network_gate.dart';
+import 'package:pulse/features/watchlist/application/feed/network_gate.dart';
+import 'package:pulse/features/watchlist/data/sse/authorized_sse_transport.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_frame.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_transport.dart';
 
 /// One `open()` call, so tests can assert on resume cursors.
 final class ConnectCall {

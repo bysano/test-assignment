@@ -1,12 +1,12 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pulse/data/api/api_exception.dart';
-import 'package:pulse/data/models/tick.dart';
-import 'package:pulse/data/sse/sse_frame.dart';
-import 'package:pulse/feed/feed_config.dart';
-import 'package:pulse/feed/feed_connection.dart';
-import 'package:pulse/feed/feed_status.dart';
-import 'package:pulse/feed/feed_update.dart';
+import 'package:pulse/core/errors/api_exception.dart';
+import 'package:pulse/features/watchlist/application/feed/feed_config.dart';
+import 'package:pulse/features/watchlist/application/feed/feed_connection.dart';
+import 'package:pulse/features/watchlist/application/feed/feed_status.dart';
+import 'package:pulse/features/watchlist/application/feed/feed_update.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_frame.dart';
+import 'package:pulse/features/watchlist/domain/models/tick.dart';
 
 import 'feed_test_doubles.dart';
 

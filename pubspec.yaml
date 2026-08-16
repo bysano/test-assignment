@@ -18,7 +18,7 @@ dependencies:
   injectable: ^2.7.1
 
   # REST calls (/login, /instruments). The SSE stream deliberately uses
-  # dart:io HttpClient instead — see lib/data/sse/http_sse_transport.dart.
+  # dart:io HttpClient instead — see the watchlist feature's data/sse folder.
   http: ^1.6.0
 
   # Per-instrument decimal formatting.

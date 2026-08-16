@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pulse/data/models/instrument.dart';
-import 'package:pulse/data/models/tick.dart';
-import 'package:pulse/watchlist/quote_store.dart';
-import 'package:pulse/watchlist/widgets/price_row.dart';
+import 'package:pulse/features/watchlist/application/quote_store.dart';
+import 'package:pulse/features/watchlist/domain/models/instrument.dart';
+import 'package:pulse/features/watchlist/domain/models/tick.dart';
+import 'package:pulse/features/watchlist/presentation/widgets/price_row.dart';
 
 /// Counts how many times the subtree beneath it is rebuilt *from above*.
 ///

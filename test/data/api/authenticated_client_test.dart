@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:pulse/data/api/api_exception.dart';
-import 'package:pulse/data/api/authenticated_client.dart';
-import 'package:pulse/data/api/token_source.dart';
+import 'package:pulse/core/errors/api_exception.dart';
+import 'package:pulse/features/auth/data/authenticated_client.dart';
+import 'package:pulse/features/auth/domain/token_source.dart';
 
 /// Hands out `token-0`, then `token-1`, and so on.
 class FakeTokens implements TokenSource {

@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:pulse/data/api/api_exception.dart';
-import 'package:pulse/data/api/auth_api.dart';
-import 'package:pulse/data/api/instruments_api.dart';
+import 'package:pulse/core/errors/api_exception.dart';
+import 'package:pulse/features/auth/data/auth_api.dart';
+import 'package:pulse/features/watchlist/data/instruments_api.dart';
 
 final _baseUrl = Uri.parse('http://localhost:8080');
 

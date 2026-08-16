@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pulse/data/api/api_exception.dart';
-import 'package:pulse/data/api/token_source.dart';
-import 'package:pulse/data/sse/authorized_sse_transport.dart';
-import 'package:pulse/data/sse/sse_frame.dart';
-import 'package:pulse/data/sse/sse_transport.dart';
+import 'package:pulse/core/errors/api_exception.dart';
+import 'package:pulse/features/auth/domain/token_source.dart';
+import 'package:pulse/features/watchlist/data/sse/authorized_sse_transport.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_frame.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_transport.dart';
 
 class _Attempt {
   const _Attempt(this.token, this.lastEventId);

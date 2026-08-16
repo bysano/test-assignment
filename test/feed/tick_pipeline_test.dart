@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pulse/data/sse/sse_frame.dart';
-import 'package:pulse/feed/feed_update.dart';
-import 'package:pulse/feed/tick_pipeline.dart';
+import 'package:pulse/features/watchlist/application/feed/feed_update.dart';
+import 'package:pulse/features/watchlist/application/feed/tick_pipeline.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_frame.dart';
 
 SseEvent tickEvent({
   required int id,

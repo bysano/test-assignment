@@ -1,8 +1,8 @@
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pulse/data/models/quote.dart';
-import 'package:pulse/data/models/tick.dart';
-import 'package:pulse/watchlist/quote_store.dart';
+import 'package:pulse/features/watchlist/application/quote_store.dart';
+import 'package:pulse/features/watchlist/domain/models/quote.dart';
+import 'package:pulse/features/watchlist/domain/models/tick.dart';
 
 Tick tick({
   int id = 1,

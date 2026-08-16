@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'app.dart';
-import 'core/frame_stats.dart';
-import 'di/injection.dart';
+import 'app/app.dart';
+import 'app/di/injection.dart';
+import 'core/diagnostics/frame_stats.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pulse/data/sse/sse_frame.dart';
-import 'package:pulse/data/sse/sse_parser.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_frame.dart';
+import 'package:pulse/features/watchlist/data/sse/sse_parser.dart';
 
 /// Feeds [text] to a fresh parser in fixed-size slices, so a test can prove the
 /// result does not depend on where the network happened to break the stream.

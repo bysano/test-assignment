@@ -76,10 +76,10 @@ Prints build and raster percentiles every ~5s. Measured numbers are in
 
 | | |
 |---|---|
-| `lib/feed/feed_connection.dart` | reconnect, stall watchdog, token refresh, offline gate |
-| `lib/feed/tick_pipeline.dart` | dedup and ordering — the correctness core |
-| `lib/watchlist/quote_store.dart` | conflation and per-symbol listenables |
-| `lib/watchlist/widgets/price_row.dart` | the only widget a tick can rebuild |
+| `lib/features/watchlist/application/feed/feed_connection.dart` | reconnect, stall watchdog, token refresh, offline gate |
+| `lib/features/watchlist/application/feed/tick_pipeline.dart` | dedup and ordering — the correctness core |
+| `lib/features/watchlist/application/quote_store.dart` | conflation and per-symbol listenables |
+| `lib/features/watchlist/presentation/widgets/price_row.dart` | the only widget a tick can rebuild |
 | `packages/pulse_native/` | the plugin: Dart API plus Swift |
 
 ## Regenerating DI

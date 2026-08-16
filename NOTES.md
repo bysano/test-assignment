@@ -295,17 +295,23 @@ half-working "stay signed in".
 ## Structure
 
 ```
-lib/feed/          the state machine, dedup, ordering   ← zero Flutter imports
-lib/data/          transport, SSE parser, REST, models
-lib/auth/          token lifecycle + AuthBloc
-lib/watchlist/     QuoteStore + WatchlistBloc + UI
+lib/app/                   app shell, configuration, DI, theme
+lib/core/                  shared diagnostics, errors, formatting
+lib/features/auth/         data, domain token contract, presentation
+lib/features/watchlist/    application, data, domain models, presentation
 packages/pulse_native/   the plugin (Dart API + Swift)
 ```
 
-`lib/feed/` imports no Flutter at all, not even `foundation`. It declares its
-own `NetworkGate` port and an adapter in `lib/data/platform/` maps the plugin
-onto it — which is what keeps the feed layer from depending on the plugin, and
-lets the reconnect tests drive connectivity by hand.
+The feature folders are vertical slices: code for authentication or the
+watchlist lives together instead of being split among global `data`, `feed`,
+and UI folders. Within each feature, dependency direction remains visible as
+`presentation → application → domain`, with external implementations under
+`data`.
+
+The watchlist's `application/feed/` imports no Flutter at all, not even
+`foundation`. It declares its own `NetworkGate` port and an adapter in
+`data/network/` maps the plugin onto it — which keeps the state machine from
+depending on the plugin and lets reconnect tests drive connectivity by hand.
 
 DI is `get_it` + `injectable`, using explicit `@module` factory methods rather
 than constructor annotations: several of these types take injectable clocks
@@ -396,9 +402,9 @@ conversationally, and I want to be precise about the division of labour
 because it is not "it wrote the app".
 
 **Mine:** the architecture — the decision to keep prices out of bloc state and
-what that buys, the port/adapter boundary that keeps `lib/feed/` Flutter-free,
-the two-guard dedup/ordering split, the conflation rate and its justification,
-the watchdog thresholds, and the choice of what to test.
+what that buys, the port/adapter boundary that keeps the feed application
+layer Flutter-free, the two-guard dedup/ordering split, the conflation rate and
+its justification, the watchdog thresholds, and the choice of what to test.
 
 **The model's:** most of the code, the test bodies once I had said what to
 test, and the mechanical work — pubspec resolution, the Swift Keychain

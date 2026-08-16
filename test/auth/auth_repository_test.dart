@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:pulse/auth/auth_repository.dart';
-import 'package:pulse/auth/stored_session.dart';
-import 'package:pulse/data/api/api_exception.dart';
-import 'package:pulse/data/api/auth_api.dart';
+import 'package:pulse/core/errors/api_exception.dart';
+import 'package:pulse/features/auth/data/auth_api.dart';
+import 'package:pulse/features/auth/data/auth_repository.dart';
+import 'package:pulse/features/auth/data/stored_session.dart';
 import 'package:pulse_native/pulse_native.dart';
 
 /// Secure storage we can inspect and break on demand.
