@@ -3,7 +3,7 @@
 ## What this is
 
 A Flutter watchlist over the provided SSE feed, built against the **default
-chaotic mode**. ~3,400 lines of Dart and ~200 of Swift, 174 tests.
+chaotic mode**. ~3,400 lines of Dart and ~200 of Swift, 182 tests.
 
 Run instructions are in [README.md](README.md). The native piece targets
 **iOS**.
@@ -176,8 +176,28 @@ Two details that only matter in production:
 **`refreshAfter(rejected)` takes the dead token** rather than nothing. If the
 REST client and the stream 401 at the same moment — which they will, since one
 token expiry kills both — the second one to arrive is handed the replacement
-the first already obtained instead of triggering a second login. A burst of
-401s costs one login.
+the first already obtained instead of triggering a second login.
+
+That makes the concurrent story worth stating precisely, because it comes from
+`AuthenticatedClient` and `AuthRepository` together and is not obvious from
+either alone. `auth_concurrency_test.dart` pins all of it:
+
+| N requests 401 at once | one login, not N — they share the in-flight future |
+| Each of them | is replayed with the new token. There is no queue: every suspended `send()` is already holding its own request, so "retry everything pending" falls out for free |
+| A request arriving *mid*-refresh | joins the one in flight rather than opening a second |
+| The refresh fails | every waiter fails, with the same error, after one login attempt |
+| The next request after that | attempts a login rather than spending a request on the dead token |
+
+That last row was a real defect, found by writing these tests. A rejected
+token used to stay cached until *our* clock said it expired, so after a failed
+refresh every subsequent request burned a guaranteed 401 before retrying.
+`refreshAfter` now forgets the token before trying to replace it.
+
+Still missing for a genuinely production-grade version: nothing backs off the
+`/login` call itself. Concurrent callers already collapse to one attempt, and
+`FeedConnection` backs off around it, so nothing hammers today — but a
+transient login failure deserves its own jittered retry rather than relying on
+the callers to provide one.
 
 **The retry is a copy, not a replay.** A `BaseRequest` is finalized when sent,
 so re-sending the original silently drops the body; the client builds a fresh
@@ -299,7 +319,7 @@ channel names, and one branch — no Dart above that file changes.
 
 ---
 
-## Tests — 174, and why these
+## Tests — 182, and why these
 
 Connection lifecycle runs on `fake_async` against a `FakeSseTransport`: no
 server, no sockets, no real time. A full reconnect saga executes in
@@ -314,6 +334,7 @@ microseconds.
 | `quote_store_test.dart` | 13 | conflation ratios, no timers while idle, flash direction against the displayed price |
 | `watchlist_bloc_test.dart` | 10 | startup, retry, 401-then-retry, status mapping, **zero emissions under 200 ticks** |
 | `price_row_rebuild_test.dart` | 9 | **rebuild counts under a 220-tick burst**, per-instrument precision, flash behaviour |
+| `auth_concurrency_test.dart` | 8 | one login for a burst of 401s, every pending request replayed, shared failure, no reuse of a rejected token |
 | `authenticated_client_test.dart` | 8 | bearer attached, one refresh-and-retry, faithful replay of method/body/headers, credentials propagated not swallowed |
 | `authorized_sse_transport_test.dart` | 7 | same policy on the stream, resume cursor preserved across the retry, no refresh for a non-auth failure |
 | `api_test.dart`, `secure_token_store_test.dart`, `platform_network_gate_test.dart`, `tick_test.dart` | 29 | REST contracts, MethodChannel contract, tri-state reachability mapping, payload decoding |

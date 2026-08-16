@@ -122,6 +122,16 @@ class AuthRepository implements TokenSource {
     // not throw away a token that is perfectly good.
     final current = _token;
     if (current != null && current != rejected) return Future.value(current);
+
+    // Forget it *before* trying to replace it. The server has told us this
+    // token is dead; our own clock still thinks it has 50 seconds left. If the
+    // replacement then fails, whoever asks next must not be handed the corpse
+    // — that buys a guaranteed 401 and a wasted round trip before every
+    // subsequent retry.
+    if (current == rejected) {
+      _token = null;
+      _expiresAt = null;
+    }
     return refreshToken();
   }
 
