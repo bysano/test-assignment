@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:pulse_native/pulse_native.dart';
 
 import '../../feed/network_gate.dart';
@@ -37,6 +38,11 @@ class PlatformNetworkGate implements NetworkGate {
   Stream<bool> get changes => _changes.stream;
 
   void _onStatus(NetworkStatus status) {
+    // Every value, not just transitions: reachability changes are rare, and a
+    // channel that has silently stopped reporting is otherwise invisible —
+    // the app would sit believing whatever it last heard.
+    debugPrint('[pulse.network] reachability: ${status.name}');
+
     final online = status != NetworkStatus.offline;
     if (online == _online) return; // only transitions are interesting
     _online = online;
