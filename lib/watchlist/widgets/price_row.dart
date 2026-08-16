@@ -191,13 +191,18 @@ class _PriceCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 82,
+      width: 84,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: MainAxisAlignment.center,
+        // Sized to its content. Left at `max` the column claims the row's
+        // full height and overflows the moment a font's metrics run taller
+        // than the ones it was eyeballed against.
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             label,
+            maxLines: 1,
             style: TextStyle(
               fontSize: 9,
               letterSpacing: 0.8,
@@ -207,6 +212,10 @@ class _PriceCell extends StatelessWidget {
           Text(
             // An em dash until the first tick — an empty cell reads as a bug.
             value == null ? '—' : PriceFormatter.format(value!, decimals),
+            // A price must never wrap: a wrapped number is unreadable, and it
+            // would change the row's height mid-scroll.
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: kPriceStyle,
           ),
         ],
